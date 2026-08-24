@@ -19,6 +19,22 @@ export function ProductCard({ product }) {
           {product.status}
         </s-paragraph>
         <s-paragraph>
+          <s-text>Vendor: </s-text>
+          {product.vendor || "N/A"}
+        </s-paragraph>
+        <s-paragraph>
+          <s-text>Type: </s-text>
+          {product.productType || "N/A"}
+        </s-paragraph>
+        <s-paragraph>
+          <s-text>Total inventory: </s-text>
+          {product.totalInventory ?? 0}
+        </s-paragraph>
+        <s-paragraph>
+          <s-text>Variants loaded: </s-text>
+          {product.variants?.nodes?.length ?? 0}
+        </s-paragraph>
+        <s-paragraph>
           <s-text>Created: </s-text>
           {new Date(product.createdAt).toLocaleString()}
         </s-paragraph>

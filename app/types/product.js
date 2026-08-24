@@ -5,6 +5,10 @@
  * @property {string} title
  * @property {string} handle
  * @property {string} status
+ * @property {string | null} vendor
+ * @property {string | null} productType
+ * @property {number | null} totalInventory
+ * @property {{ nodes: Array<{ id: string }> }} variants
  * @property {string} createdAt
  */
 

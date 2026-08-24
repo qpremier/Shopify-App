@@ -512,3 +512,268 @@ The app does not count all products.
 The app trusts Shopify's `pageInfo`.
 
 That is the correct way to do Shopify GraphQL pagination.
+
+---
+
+# Fetching Products, Orders, Customers, Inventory, And Locations
+
+> Goal: load multiple Shopify Admin API resources from the embedded app home page.
+
+## 1. Is This Different From Products?
+
+Mostly no.
+
+The basic idea is the same as products:
+
+```text
+Route loader authenticates merchant
+-> loader gets Shopify Admin API client
+-> loader calls service function
+-> service function runs GraphQL query
+-> React component displays returned data
+```
+
+Products already worked like this:
+
+```js
+const { admin } = await authenticate.admin(request);
+return await getProducts(admin, paginationOptions);
+```
+
+The new resources use the same pattern:
+
+```js
+getOrders(admin)
+getCustomers(admin)
+getInventoryItems(admin)
+getLocations(admin)
+```
+
+So the big concept is not new. We simply repeated the same clean pattern for more Shopify resources.
+
+## 2. What Is New?
+
+The new part is organization and error handling.
+
+Before, `products.server.js` called `admin.graphql()` directly.
+
+Now there is one shared helper:
+
+```text
+app/services/admin-graphql.server.js
+```
+
+That file has:
+
+```js
+runAdminGraphql(admin, query, variables)
+```
+
+Its job is:
+
+1. Send the GraphQL request to Shopify.
+2. Convert the response to JSON.
+3. Check if Shopify returned GraphQL errors.
+4. Return only `json.data` to the service.
+
+This means every service file can stay small and focused.
+
+## 3. Why Separate Service Files?
+
+Each Shopify resource now has its own service file:
+
+| File | Purpose |
+| --- | --- |
+| `app/services/products.server.js` | Fetch products |
+| `app/services/orders.server.js` | Fetch recent orders |
+| `app/services/customers.server.js` | Fetch customers |
+| `app/services/inventory.server.js` | Fetch inventory items and quantities |
+| `app/services/locations.server.js` | Fetch shop locations |
+| `app/services/admin-graphql.server.js` | Shared GraphQL request helper |
+
+This is better than putting all queries inside `app._index.jsx` because:
+
+- The route stays readable.
+- Each resource query is easy to find.
+- UI code is separate from API code.
+- Later, pagination/search/filtering can be added resource by resource.
+
+## 4. How The Loader Works Now
+
+The route file is:
+
+```text
+app/routes/app._index.jsx
+```
+
+The loader still starts the same way:
+
+```js
+const { admin } = await authenticate.admin(request);
+```
+
+That gives us the authenticated Shopify Admin API client.
+
+Then the loader fetches all resources:
+
+```js
+const [productResult, orderResult, customerResult, inventoryResult, locationResult] =
+  await Promise.all([
+    loadResource(() => getProducts(admin, paginationOptions)),
+    loadResource(() => getOrders(admin, { first: RESOURCE_PREVIEW_SIZE })),
+    loadResource(() => getCustomers(admin, { first: RESOURCE_PREVIEW_SIZE })),
+    loadResource(() => getInventoryItems(admin, { first: RESOURCE_PREVIEW_SIZE })),
+    loadResource(() => getLocations(admin, { first: RESOURCE_PREVIEW_SIZE })),
+  ]);
+```
+
+`Promise.all()` means the app asks Shopify for these resources in parallel.
+
+That is faster than doing this:
+
+```text
+fetch products
+then fetch orders
+then fetch customers
+then fetch inventory
+then fetch locations
+```
+
+## 5. Why `loadResource()` Exists
+
+The helper:
+
+```js
+async function loadResource(fetcher) {
+  try {
+    return { items: await fetcher(), error: null };
+  } catch (error) {
+    return {
+      items: [],
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to load this Shopify resource.",
+    };
+  }
+}
+```
+
+This prevents one failed resource from breaking the whole page.
+
+Example:
+
+```text
+Products load successfully.
+Orders load successfully.
+Customers fail because Shopify has not approved customer access.
+Inventory loads successfully.
+Locations load successfully.
+```
+
+Without `loadResource()`, one Shopify error could crash the whole page. With it, the page can show data that worked and a clear error for the resource that failed.
+
+## 6. Why Shopify Shows The Customer Error
+
+Shopify says:
+
+```text
+This app is not approved to access the Customer object.
+```
+
+This is not mainly a JavaScript problem.
+
+The code asks Shopify for customer data:
+
+```graphql
+customers(first: $first) {
+  nodes {
+    id
+    displayName
+    email
+    phone
+    numberOfOrders
+    amountSpent {
+      amount
+      currencyCode
+    }
+    createdAt
+  }
+}
+```
+
+But Shopify treats customer data as protected customer data.
+
+Customer name, email, phone, and address fields are even more sensitive because they directly identify a person.
+
+So `read_customers` scope alone is not always enough. The app also needs protected customer data access configured or approved in the Shopify Partner Dashboard.
+
+## 7. How To Fix Customer Access
+
+For development stores, Shopify says you can enable the customer data and fields in the Partner Dashboard without submitting the app for full review, as long as the app is installed only on development stores.
+
+For public apps, you need to request protected customer data access and explain why the app needs that data.
+
+Basic steps:
+
+1. Open Shopify Partner Dashboard.
+2. Select this app.
+3. Go to API access requests.
+4. Request Protected customer data access.
+5. Select the customer fields the app needs, such as name, email, or phone.
+6. Save the reason for using each field.
+7. Reinstall or reauthorize the app if Shopify requires new approval.
+
+Important: only request fields that the app really needs.
+
+For example, if you only need order count and total spent, avoid asking for phone number.
+
+## 8. Required Scopes
+
+The app config now includes:
+
+```toml
+scopes = "read_products,read_orders,read_customers,read_inventory,read_locations"
+```
+
+These are in:
+
+```text
+shopify.app.toml
+shopify.app.test-app.toml
+```
+
+After changing scopes, the merchant usually needs to approve the new scopes again.
+
+If the app was already installed before the scope change, run the Shopify app dev flow and approve the updated permissions when Shopify asks.
+
+## 9. Final Mental Model
+
+Think of each resource as a separate pipeline:
+
+```text
+Products component
+<- products data
+<- getProducts()
+<- Shopify products GraphQL query
+
+Orders component
+<- orders data
+<- getOrders()
+<- Shopify orders GraphQL query
+
+Customers component
+<- customers data or approval error
+<- getCustomers()
+<- Shopify customers GraphQL query
+```
+
+So yes, the fetching idea is the same as products.
+
+The new lessons are:
+
+- Use one service file per Shopify resource.
+- Use a shared GraphQL helper to avoid repeated request code.
+- Fetch independent resources in parallel with `Promise.all()`.
+- Handle each resource error separately.
+- Customer data has extra Shopify approval rules because it is protected customer data.
