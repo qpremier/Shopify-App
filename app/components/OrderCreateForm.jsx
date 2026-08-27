@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRevalidator } from "react-router";
 
 function formatErrors(errors) {
@@ -18,6 +18,12 @@ function formatErrors(errors) {
  */
 export function OrderCreateForm({ products = [] }) {
   const revalidator = useRevalidator();
+  const formId = useId();
+  const variantFieldId = `${formId}-variantId`;
+  const quantityFieldId = `${formId}-quantity`;
+  const customerFieldId = `${formId}-customerId`;
+  const emailFieldId = `${formId}-email`;
+  const testFieldId = `${formId}-test`;
   const variantOptions = products.flatMap((product) =>
     (product.variants?.nodes || []).map((variant) => ({
       id: variant.id,
@@ -106,113 +112,107 @@ export function OrderCreateForm({ products = [] }) {
           ) : null}
 
           {variantOptions.length > 0 ? (
-            <label>
-              <s-stack direction="block" gap="small">
-                <span>Product variant</span>
-                <select
-                  name="variantId"
-                  required
-                  value={variantId}
-                  onChange={(event) => setVariantId(event.target.value)}
-                  style={{
-                    width: "100%",
-                    boxSizing: "border-box",
-                    padding: "0.6rem",
-                  }}
-                >
-                  {variantOptions.map((variant) => (
-                    <option key={variant.id} value={variant.id}>
-                      {variant.label}
-                    </option>
-                  ))}
-                </select>
-              </s-stack>
-            </label>
+            <s-stack direction="block" gap="small">
+              <label htmlFor={variantFieldId}>Product variant</label>
+              <select
+                id={variantFieldId}
+                name="variantId"
+                required
+                value={variantId}
+                onChange={(event) => setVariantId(event.target.value)}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "0.6rem",
+                }}
+              >
+                {variantOptions.map((variant) => (
+                  <option key={variant.id} value={variant.id}>
+                    {variant.label}
+                  </option>
+                ))}
+              </select>
+            </s-stack>
           ) : (
-            <label>
-              <s-stack direction="block" gap="small">
-                <span>Product variant GID</span>
-                <input
-                  name="variantId"
-                  required
-                  value={variantId}
-                  onChange={(event) => setVariantId(event.target.value)}
-                  placeholder="gid://shopify/ProductVariant/456"
-                  style={{
-                    width: "100%",
-                    boxSizing: "border-box",
-                    padding: "0.6rem",
-                  }}
-                />
-              </s-stack>
-            </label>
+            <s-stack direction="block" gap="small">
+              <label htmlFor={variantFieldId}>Product variant GID</label>
+              <input
+                id={variantFieldId}
+                name="variantId"
+                required
+                value={variantId}
+                onChange={(event) => setVariantId(event.target.value)}
+                placeholder="gid://shopify/ProductVariant/456"
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "0.6rem",
+                }}
+              />
+            </s-stack>
           )}
 
-          <label>
-            <s-stack direction="block" gap="small">
-              <span>Quantity</span>
-              <input
-                min="1"
-                name="quantity"
-                required
-                type="number"
-                value={quantity}
-                onChange={(event) => setQuantity(event.target.value)}
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  padding: "0.6rem",
-                }}
-              />
-            </s-stack>
-          </label>
+          <s-stack direction="block" gap="small">
+            <label htmlFor={quantityFieldId}>Quantity</label>
+            <input
+              id={quantityFieldId}
+              min="1"
+              name="quantity"
+              required
+              type="number"
+              value={quantity}
+              onChange={(event) => setQuantity(event.target.value)}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "0.6rem",
+              }}
+            />
+          </s-stack>
 
-          <label>
-            <s-stack direction="block" gap="small">
-              <span>Customer GID</span>
-              <input
-                name="customerId"
-                value={customerId}
-                onChange={(event) => setCustomerId(event.target.value)}
-                placeholder="gid://shopify/Customer/123"
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  padding: "0.6rem",
-                }}
-              />
-            </s-stack>
-          </label>
+          <s-stack direction="block" gap="small">
+            <label htmlFor={customerFieldId}>Customer GID</label>
+            <input
+              id={customerFieldId}
+              name="customerId"
+              value={customerId}
+              onChange={(event) => setCustomerId(event.target.value)}
+              placeholder="gid://shopify/Customer/123"
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "0.6rem",
+              }}
+            />
+          </s-stack>
 
-          <label>
-            <s-stack direction="block" gap="small">
-              <span>Email</span>
-              <input
-                name="email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="customer@example.com"
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  padding: "0.6rem",
-                }}
-              />
-            </s-stack>
-          </label>
+          <s-stack direction="block" gap="small">
+            <label htmlFor={emailFieldId}>Email</label>
+            <input
+              id={emailFieldId}
+              name="email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="customer@example.com"
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "0.6rem",
+              }}
+            />
+          </s-stack>
 
-          <label>
-            <s-stack direction="inline" gap="small">
-              <input
-                checked={isTestOrder}
-                name="test"
-                type="checkbox"
-                onChange={(event) => setIsTestOrder(event.target.checked)}
-              />
-              <span>Create as test order</span>
-            </s-stack>
-          </label>
+          <s-stack direction="inline" gap="small">
+            <input
+              id={testFieldId}
+              checked={isTestOrder}
+              name="test"
+              type="checkbox"
+              onChange={(event) => setIsTestOrder(event.target.checked)}
+            />
+            <label htmlFor={testFieldId}>Create as test order</label>
+          </s-stack>
 
           <s-button type="submit" variant="primary" disabled={isSubmitting}>
             {isSubmitting ? "Creating..." : "Create order"}
