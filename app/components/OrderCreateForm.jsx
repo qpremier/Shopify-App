@@ -1,3 +1,4 @@
+import { useAppBridge } from "@shopify/app-bridge-react";
 import { useId, useState } from "react";
 import { useRevalidator } from "react-router";
 
@@ -17,6 +18,7 @@ function formatErrors(errors) {
  * @param {{ products?: Array<Record<string, any>> }} props
  */
 export function OrderCreateForm({ products = [] }) {
+  const shopify = useAppBridge();
   const revalidator = useRevalidator();
   const formId = useId();
   const variantFieldId = `${formId}-variantId`;
@@ -62,9 +64,13 @@ export function OrderCreateForm({ products = [] }) {
     }
 
     try {
+      const token = await shopify.idToken();
       const response = await fetch("/api/orders", {
         method: "POST",
+        cache: "no-store",
+        credentials: "include",
         headers: {
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),

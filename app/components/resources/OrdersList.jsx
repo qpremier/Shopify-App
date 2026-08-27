@@ -1,7 +1,8 @@
 // Purpose of this file is to render Shopify order previews.
+import { useAppBridge } from "@shopify/app-bridge-react";
 import { useEffect, useState } from "react";
 
-const ORDER_REFRESH_INTERVAL_MS = 15000;
+const ORDER_REFRESH_INTERVAL_MS = 5000;
 
 function formatMoney(money) {
   if (!money?.amount || !money?.currencyCode) return "N/A";
@@ -20,6 +21,7 @@ function formatCreatedAt(createdAt) {
  * @param {{ orders: Array<Record<string, any>> }} props
  */
 export function OrdersList({ orders = [] }) {
+  const shopify = useAppBridge();
   const [visibleOrders, setVisibleOrders] = useState(orders);
 
   useEffect(() => {
@@ -35,7 +37,14 @@ export function OrdersList({ orders = [] }) {
       }
 
       try {
-        const response = await fetch("/api/orders/recent?first=5");
+        const token = await shopify.idToken();
+        const response = await fetch("/api/orders/recent?first=5", {
+          cache: "no-store",
+          credentials: "include",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
         if (!response.ok) {
           return;
@@ -56,6 +65,7 @@ export function OrdersList({ orders = [] }) {
       ORDER_REFRESH_INTERVAL_MS,
     );
 
+    refreshOrders();
     document.addEventListener("visibilitychange", refreshOrders);
 
     return () => {
@@ -63,7 +73,7 @@ export function OrdersList({ orders = [] }) {
       window.clearInterval(intervalId);
       document.removeEventListener("visibilitychange", refreshOrders);
     };
-  }, []);
+  }, [shopify]);
 
   return (
     <s-stack direction="block" gap="base">
