@@ -32,3 +32,32 @@ model Session {
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
+
+model WebhookReceipt {
+  id         String   @id
+  shop       String
+  topic      String
+  apiVersion String?
+  receivedAt DateTime @default(now())
+
+  @@index([shop, topic])
+}
+
+model CachedOrder {
+  id                       String   @id @default(cuid())
+  shop                     String
+  shopifyOrderId           String
+  name                     String?
+  createdAt                DateTime?
+  financialStatus          String?
+  fulfillmentStatus        String?
+  totalPrice               String?
+  currencyCode             String?
+  customerDisplayName      String?
+  customerEmail            String?
+  cachedAt                 DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@index([shop, createdAt])
+  @@unique([shop, shopifyOrderId])
+}

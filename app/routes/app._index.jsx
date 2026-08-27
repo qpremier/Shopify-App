@@ -3,6 +3,7 @@ import { useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { ProductList } from "../components/ProductList";
 import { ProductPagination } from "../components/ProductPagination";
+import { OrderCreateForm } from "../components/OrderCreateForm";
 import { CustomersList } from "../components/resources/CustomersList";
 import { InventoryList } from "../components/resources/InventoryList";
 import { LocationsList } from "../components/resources/LocationsList";
@@ -12,11 +13,28 @@ import { authenticate } from "../shopify.server";
 import { getCustomers } from "../services/customers.server";
 import { getInventoryItems } from "../services/inventory.server";
 import { getLocations } from "../services/locations.server";
-import { getOrders } from "../services/orders.server";
+import {
+  getCachedOrders,
+  syncRecentOrdersFromShopify,
+} from "../services/orders.server";
 import { getProducts } from "../services/products.server";
 
 const PRODUCTS_PAGE_SIZE = 10;
 const RESOURCE_PREVIEW_SIZE = 5;
+
+function formatResourceError(error) {
+  const message =
+    error instanceof Error ? error.message : "Unable to load this Shopify resource.";
+
+  if (message.includes("not approved to access the Order object")) {
+    return [
+      "This app is not approved to access Shopify orders yet.",
+      "Approve protected customer data access for this app and reinstall or re-authorize it with the read_orders/write_orders scopes.",
+    ].join(" ");
+  }
+
+  return message;
+}
 
 async function loadResource(fetcher) {
   try {
@@ -24,10 +42,23 @@ async function loadResource(fetcher) {
   } catch (error) {
     return {
       items: [],
-      error:
-        error instanceof Error
-          ? error.message
-          : "Unable to load this Shopify resource.",
+      error: formatResourceError(error),
+    };
+  }
+}
+
+async function loadOrders(admin, shop, options) {
+  const cachedOrders = await getCachedOrders(shop, options);
+
+  try {
+    return {
+      items: await syncRecentOrdersFromShopify(admin, shop, options),
+      error: null,
+    };
+  } catch (error) {
+    return {
+      items: cachedOrders,
+      error: cachedOrders.length > 0 ? null : formatResourceError(error),
     };
   }
 }
@@ -35,7 +66,7 @@ async function loadResource(fetcher) {
 // Authenticates the merchant and loads product data on the server.
 export const loader = async ({ request }) => {
   // First It authenticate the admin API and then fetches a page of products from the Shopify Admin API. It also reads the `after` and `before` query parameters to determine which page of products to load.
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const url = new URL(request.url);
   // It gets after and before query parameters from the URL to determine which page of products to load. If the before parameter is present, it fetches the previous page of products; otherwise, it fetches the next page.
   const after = url.searchParams.get("after");
@@ -47,7 +78,7 @@ export const loader = async ({ request }) => {
   const [productResult, orderResult, customerResult, inventoryResult, locationResult] =
     await Promise.all([
       loadResource(() => getProducts(admin, paginationOptions)),
-      loadResource(() => getOrders(admin, { first: RESOURCE_PREVIEW_SIZE })),
+      loadOrders(admin, session.shop, { first: RESOURCE_PREVIEW_SIZE }),
       loadResource(() => getCustomers(admin, { first: RESOURCE_PREVIEW_SIZE })),
       loadResource(() => getInventoryItems(admin, { first: RESOURCE_PREVIEW_SIZE })),
       loadResource(() => getLocations(admin, { first: RESOURCE_PREVIEW_SIZE })),
@@ -101,10 +132,12 @@ export default function Index() {
 
       <ResourceSection
         title="Orders"
-        description="Showing the newest orders from the Shopify Admin API."
+        description="Create an order, then review the newest orders from the Shopify Admin API."
         items={orders}
         error={errors.orders}
+        alwaysRenderChildren
       >
+        <OrderCreateForm products={products} />
         <OrdersList orders={orders} />
       </ResourceSection>
 

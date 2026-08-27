@@ -7,6 +7,12 @@ import { authenticate } from "../shopify.server";
 
 // Protects every child route and passes the Shopify API key to the client app shell.
 export const loader = async ({ request }) => {
+  console.error("[app loader] Request reached server", {
+    url: request.url,
+    hasShopifyApiKey: Boolean(env.shopifyApiKey),
+    shopifyAppUrl: env.shopifyAppUrl || null,
+  });
+
   await authenticate.admin(request);
 
   return { apiKey: env.shopifyApiKey };

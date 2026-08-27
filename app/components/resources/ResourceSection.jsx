@@ -7,15 +7,34 @@
  *   description: string,
  *   items: unknown[],
  *   error?: string | null,
+ *   alwaysRenderChildren?: boolean,
  *   children: React.ReactNode,
  * }} props
  */
-export function ResourceSection({ title, description, items, error, children }) {
+export function ResourceSection({
+  title,
+  description,
+  items,
+  error,
+  alwaysRenderChildren = false,
+  children,
+}) {
   return (
     <s-section heading={title}>
       <s-stack direction="block" gap="base">
         <s-paragraph>{description}</s-paragraph>
-        {error ? (
+        {alwaysRenderChildren ? (
+          <>
+            {children}
+            {error ? (
+              <s-banner tone="critical">
+                <s-paragraph>{error}</s-paragraph>
+              </s-banner>
+            ) : items.length === 0 ? (
+              <s-paragraph>No {title.toLowerCase()} found yet.</s-paragraph>
+            ) : null}
+          </>
+        ) : error ? (
           <s-banner tone="critical">
             <s-paragraph>{error}</s-paragraph>
           </s-banner>

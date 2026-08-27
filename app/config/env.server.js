@@ -7,3 +7,14 @@ export const env = {
   shopifyScopes: process.env.SCOPES?.split(",") || [],
   shopCustomDomain: process.env.SHOP_CUSTOM_DOMAIN,
 };
+
+if (env.nodeEnv === "development") {
+  console.error("[env.server] Loaded server env", {
+    nodeEnv: env.nodeEnv,
+    hasShopifyApiKey: Boolean(env.shopifyApiKey),
+    hasShopifyApiSecret: Boolean(env.shopifyApiSecret),
+    shopifyAppUrl: env.shopifyAppUrl || null,
+    scopes: env.shopifyScopes,
+    shopCustomDomain: env.shopCustomDomain || null,
+  });
+}
